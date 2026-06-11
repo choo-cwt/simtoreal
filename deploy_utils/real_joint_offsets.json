@@ -1,0 +1,18 @@
+{
+  "so_follower": {
+    "shoulder_pan": 0.0,
+    "shoulder_lift": 0.0,
+    "elbow_flex": -20.0,
+    "wrist_flex": 0.0,
+    "wrist_roll": -90.0,
+    "gripper": 0.0
+  },
+  "so101_follower": {
+    "shoulder_pan": 0.0,
+    "shoulder_lift": 0.0,
+    "elbow_flex": -20.0,
+    "wrist_flex": 0.0,
+    "wrist_roll": -90.0,
+    "gripper": 0.0
+  }
+}

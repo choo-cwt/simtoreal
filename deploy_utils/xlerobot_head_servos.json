@@ -1,0 +1,10 @@
+{
+  "port": "/dev/ttyACM1",
+  "pan_id": 9,
+  "tilt_id": 10,
+  "pan_center": 475,
+  "tilt_center": 198,
+  "pan_sign": 1.0,
+  "tilt_sign": 1.0,
+  "ticks_per_rev": 4095.0
+}
