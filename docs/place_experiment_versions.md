@@ -1844,6 +1844,108 @@ Observed failure modes to check:
 Decision:
 - Train fresh. If the policy becomes conservative, reduce `fast_near_penalty` first before weakening the push penalty.
 
+## v35 - Spaced Smooth Visible Range
+
+Date: 2026-06-11
+Status: applied, ready to train.
+
+Goal:
+- Keep the higher-success v30-style behavior, but address two observed issues:
+  - cube and bin too close, so the gripper hits the bin while trying to pick the cube
+  - policy outputs jittery arm motion near the cube
+- Keep reward shaping proportional so the main task reward still dominates.
+
+Changed from v34:
+- Widened the visible sampling range so larger item/bin spacing can actually fit:
+  - v34: `x=[0.27,0.36]`, `y=[0.06,0.13]`
+  - v35: `x=[0.26,0.40]`, `y=[0.05,0.15]`
+- Increased item/bin spacing:
+  - `item_bin_min_center_dist`: `0.12 -> 0.135`
+  - `item_bin_exclusion_margin`: `0.01 -> 0.02`
+- Increased rejection-sampling attempts from `100` to `200`.
+- Made the last-resort fallback put item/bin at opposite corners of the shared range.
+- Added small action-smoothness penalties before grasp:
+  - global pre-grasp action-delta penalty max `0.08`
+  - near-object extra action-delta penalty max `0.07`
+- Slightly reduced push penalty max from `0.40` to `0.35` so smoothness plus push penalties do not overpower trying to grasp.
+
+Reward scale check:
+- Success reward is `9`.
+- Grasped reward is roughly `3 + place_reward + lift_progress`, usually about `3..5.5`.
+- Reaching reward max is `2`.
+- Pre-grasp positive shaping max is about `1.15` only in a good aligned/open/closing state:
+  - open-before-grasp max `0.15`
+  - center-before-grasp max `0.55`
+  - stable-pregrasp max `0.20`
+  - aligned close max `0.25`
+- Main anti-collision/behavior penalties remain below the grasp reward:
+  - push max `0.35`
+  - fast-near max `0.15`
+  - smoothness max `0.08`
+  - near-smoothness max `0.07`
+  - early-close max `0.15`
+- Therefore the policy should prefer smooth aligned grasping, but not learn to do nothing just to avoid penalties.
+
+Current XLeRobot sampling:
+
+```python
+spawn_box_pos = [0.28, 0.10]
+spawn_box_half_size = [0.07, 0.05]
+item_bin_min_center_dist = 0.135
+item_bin_exclusion_margin = 0.02
+```
+
+Effective world/table XY range:
+
+```text
+x: [0.26, 0.40]
+y: [0.05, 0.15]
+```
+
+Training command:
+
+```bash
+env \
+  EXP_NAME=place_xlerobot_v35_spaced_smooth_range_x026_040_y005_015_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  NO_PRIVILEGED_STATE=true \
+  IMAGE_SIZE=64 \
+  RENDER_SIZE=128 \
+  NUM_ENVS=12 \
+  NUM_EVAL_ENVS=8 \
+  NUM_UPDATES=8 \
+  BATCH_SIZE=48 \
+  BUFFER_SIZE=40000 \
+  TOTAL_TIMESTEPS=3500000 \
+  EVAL_FREQ=100000 \
+  GPU_LOG_INTERVAL=10 \
+  scripts/train_place_6gb_with_logs.sh
+```
+
+Run directory:
+- `runs/place_xlerobot_v35_spaced_smooth_range_x026_040_y005_015_64img_12env_8eval_8upd_buf40k_3500k_3060`
+
+Result summary:
+- Final eval:
+- Best eval:
+- Peak GPU memory:
+- Runtime:
+
+Observed failure modes to check:
+- conservative/no motion:
+- cube/bin too close:
+- gripper hits bin while grasping:
+- action jitter near cube:
+- cube pushed away:
+- side-swipe contact before grasp:
+- early close:
+- cannot grasp:
+- bad gripper pose:
+- no lift after grasp:
+- no bin approach after grasp:
+
+Decision:
+- Train fresh. If motion is still jittery, prefer deployment-side low-pass filtering before making reward penalties much larger.
+
 ## Change Log Template
 
 Copy this section for each new version.

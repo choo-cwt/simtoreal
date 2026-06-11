@@ -95,12 +95,12 @@ class Place(DefaultCameraEnv):
             self.robot_base_pos = [0.05, 0, 0.068]
             self.rest_qpos = XLeRobot.keyframes["start"].qpos.tolist()
             if spawn_box_pos == [0.3, 0] and spawn_box_half_size == 0.2 / 2:
-                spawn_box_pos = [0.265, 0.095]
-                spawn_box_half_size = [0.045, 0.035]
+                spawn_box_pos = [0.28, 0.10]
+                spawn_box_half_size = [0.07, 0.05]
                 if item_bin_min_center_dist == 0.0:
-                    item_bin_min_center_dist = 0.12
+                    item_bin_min_center_dist = 0.135
                 if item_bin_exclusion_margin == 0.0:
-                    item_bin_exclusion_margin = 0.01
+                    item_bin_exclusion_margin = 0.02
         else:
             raise NotImplementedError(f"Unsupported robot_uids: {robot_uids}")
 
@@ -392,6 +392,9 @@ class Place(DefaultCameraEnv):
             self.agent.robot.set_pose(
                 Pose.create_from_pq(p=self.robot_base_pos, q=euler2quat(0, 0, self.base_z_rot))
             )
+            if not hasattr(self, "_prev_action") or self._prev_action.shape[0] != self.num_envs:
+                self._prev_action = torch.zeros((self.num_envs, 6), device=self.device)
+            self._prev_action[env_idx] = 0.0
 
             # Sample positions for item and bin
             spawn_center = self.agent.robot.pose.p + torch.tensor(
@@ -438,14 +441,14 @@ class Place(DefaultCameraEnv):
                     )
                     return center_far_enough & outside_bin_footprint
 
-                for _ in range(100):
+                for _ in range(200):
                     valid = valid_item_bin_offsets()
                     if valid.all().item():
                         break
                     resample = ~valid
                     new_bin_xy_offset = sample_shared_offsets()
                     bin_xy_offset[resample] = new_bin_xy_offset[resample]
-                for _ in range(100):
+                for _ in range(200):
                     valid = valid_item_bin_offsets()
                     if valid.all().item():
                         break
@@ -457,8 +460,10 @@ class Place(DefaultCameraEnv):
                 valid = valid_item_bin_offsets()
                 if not valid.all().item():
                     resample = ~valid
-                    bin_xy_offset[resample, 0] = torch.where(item_xy_offset[resample, 0] > 0, low[0], high[0])
-                    bin_xy_offset[resample, 1] = torch.where(item_xy_offset[resample, 1] > 0, low[1], high[1])
+                    item_xy_offset[resample, 0] = low[0]
+                    item_xy_offset[resample, 1] = low[1]
+                    bin_xy_offset[resample, 0] = high[0]
+                    bin_xy_offset[resample, 1] = high[1]
             else:
                 item_xy_offset = sampler.sample(item_radius, 100)
                 bin_xy_offset = sampler.sample(bin_radius, 100, verbose=False)
@@ -617,11 +622,16 @@ class Place(DefaultCameraEnv):
 
         item_speed = torch.linalg.norm(self.item.linear_velocity, dim=1)
         arm_action_norm = torch.linalg.norm(action[..., :5], dim=1)
-        push_penalty = 0.40 * torch.clamp((item_speed - 0.05) / 0.10, min=0.0, max=1.0) * not_grasped.float()
+        prev_action = getattr(self, "_prev_action", torch.zeros_like(action))
+        action_delta_norm = torch.linalg.norm(action[..., :5] - prev_action[..., :5], dim=1)
+        push_penalty = 0.35 * torch.clamp((item_speed - 0.05) / 0.10, min=0.0, max=1.0) * not_grasped.float()
         fast_near_penalty = 0.15 * torch.clamp((arm_action_norm - 0.12) / 0.18, min=0.0, max=1.0) * near_pregrasp.float()
+        smooth_penalty = 0.08 * torch.clamp((action_delta_norm - 0.08) / 0.16, min=0.0, max=1.0) * not_grasped.float()
+        near_smooth_penalty = 0.07 * torch.clamp((action_delta_norm - 0.06) / 0.14, min=0.0, max=1.0) * near_pregrasp.float()
         early_close_penalty = 0.15 * (1 - gripper_openness) * misaligned_close.float()
         reward += open_before_grasp_reward + center_before_grasp_reward + stable_pregrasp_reward + near_close_reward
-        reward -= push_penalty + fast_near_penalty + early_close_penalty
+        reward -= push_penalty + fast_near_penalty + smooth_penalty + near_smooth_penalty + early_close_penalty
+        self._prev_action = action.detach().clone()
 
         lift_progress = torch.clamp((item_pos[..., 2] - self.item_half_sizes) / 0.05, min=0.0, max=1.0)
 

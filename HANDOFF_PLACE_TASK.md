@@ -126,23 +126,22 @@ Current status:
 - Current XLeRobot spawn area is narrowed from the default:
 
 ```python
-spawn_box_pos = [0.265, 0.095]
-spawn_box_half_size = [0.045, 0.035]
-item_bin_min_center_dist = 0.12
-item_bin_exclusion_margin = 0.01
+spawn_box_pos = [0.28, 0.10]
+spawn_box_half_size = [0.07, 0.05]
+item_bin_min_center_dist = 0.135
+item_bin_exclusion_margin = 0.02
 ```
 
 With XLeRobot base `[0.05, 0, 0.068]`, this gives effective world/table XY ranges:
 
 ```text
-x: [0.27, 0.36]
-y: [0.06, 0.13]
+x: [0.26, 0.40]
+y: [0.05, 0.15]
 ```
 
 Range visualization/check:
 
 ```text
-docs/v33_effective_range.svg
 deploy_utils/render_place_workspace.py
 ```
 
@@ -239,13 +238,13 @@ It saves:
 
 ## 4090 Cloud Fresh Training Command
 
-Recommended v34 fresh stable-pregrasp visible range run:
+Recommended v35 fresh spaced smooth visible range run:
 
 ```bash
 cd /home/gpu/squint
 
 env \
-  EXP_NAME=place_xlerobot_v34_stable_pregrasp_range_x027_036_y006_013_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
+  EXP_NAME=place_xlerobot_v35_spaced_smooth_range_x026_040_y005_015_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -266,7 +265,7 @@ This is pure visual+qpos because of:
 NO_PRIVILEGED_STATE=true
 ```
 
-Do not use `CHECKPOINT=` for v34. The action scale, sampling range, spacing/exclusion rule, and reward differ from older checkpoints, so this should be a fresh training run.
+Do not use `CHECKPOINT=` for v35. The action scale, sampling range, spacing/exclusion rule, and reward differ from older checkpoints, so this should be a fresh training run.
 
 ## 3060 Local Training Command
 
@@ -276,7 +275,7 @@ Use this when limited to about 6 GB VRAM:
 cd /home/chichoo/squint-master6.6winproplace/squint-master
 
 env \
-  EXP_NAME=place_xlerobot_v34_stable_pregrasp_range_x027_036_y006_013_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  EXP_NAME=place_xlerobot_v35_spaced_smooth_range_x026_040_y005_015_64img_12env_8eval_8upd_buf40k_3500k_3060 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -418,17 +417,17 @@ Likely causes:
 - The learned sim action is faster than the real robot can accurately execute.
 - Older v21/v26 runs used fast action deltas: arm `0.1`, gripper `0.2`.
 - Current v29a uses v28b slow-real action deltas: arm `0.07`, gripper `0.10`.
-- Current v34 effective shared sampling range is `x=[0.27,0.36]`, `y=[0.06,0.13]`, kept inside the current top-camera visible area but narrowed from v33 to reduce far/side grasps.
-- Current v34 keeps item/bin random within the shared range but requires minimum center distance `0.12m`.
-- Current v34 also rejects samples where the item starts inside the bin footprint plus `0.01m` margin.
-- Current v34 uses stable pre-grasp shaping with stronger soft push, early-close, and near-fast-action penalties.
+- Current v35 effective shared sampling range is `x=[0.26,0.40]`, `y=[0.05,0.15]`, kept inside the current top-camera visible area and widened from v34 so item/bin can satisfy larger spacing.
+- Current v35 keeps item/bin random within the shared range but requires minimum center distance `0.135m`.
+- Current v35 also rejects samples where the item starts inside the bin footprint plus `0.02m` margin.
+- Current v35 uses stable pre-grasp shaping with stronger soft push, early-close, and near-fast-action penalties.
 - Visual-only policy may approach the cube from a slightly wrong height/angle and collide before the gripper is centered.
 - 64x64 helps compared with 32x32, but it does not guarantee millimeter-level alignment.
 - If the real camera crop is shifted, the policy's perceived cube center is biased.
 
 Most useful next fixes:
 
-1. Train v34 fresh with slow-real action scale, narrowed visible range plus item/bin spacing/bin-footprint exclusion, stable pre-grasp reward, and 100-step horizon.
+1. Train v35 fresh with slow-real action scale, spaced visible range plus item/bin spacing/bin-footprint exclusion, stable pre-grasp and smoothness reward, and 100-step horizon.
 2. If cube pushing remains strong, inspect eval videos before increasing penalty weights; avoid making the policy conservative.
 3. Keep 64x64 input for now.
 4. Keep green bin if the real bin material is also green and visually distinct from black table and white robot.
