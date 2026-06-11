@@ -640,11 +640,11 @@ class WristCameraEnv(BaseRandomEnv):
 class TopCameraEnv(BaseRandomEnv):
     """Environment using the fixed top camera frame from the XLeRobot URDF."""
 
-    TOP_CAMERA_FOV = np.deg2rad(39.0)
+    TOP_CAMERA_FOV = np.deg2rad(34.0)
     # Initial view for this URDF's fixed top camera mount. Real mounting offsets
     # should be calibrated with deploy_utils/tune_top_camera.py.
     TOP_CAMERA_LOCAL_P = [0.0, 0.0, 0.0]
-    TOP_CAMERA_LOCAL_Q = [0.299687, 0.12721, 0.870354, 0.369444]
+    TOP_CAMERA_LOCAL_Q = [0.180132, 0.14849, 0.750305, 0.618503]
     TOP_CAMERA_HIDE_SELF_LINKS = [
         "head_tilt_link",
         "head_tilt_link_geom_1",

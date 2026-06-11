@@ -1174,6 +1174,86 @@ Notes:
 - This keeps green bin, wrist-roll action, 64x64 visual+qpos, and no-privileged-state training unchanged.
 - Recommended next run: resume from the v21/v26 best checkpoint, not the final checkpoint.
 
+## v28a - Slow-Real Action Scale Fresh Training
+
+Date: 2026-06-11
+Status: applied, ready to train.
+
+Goal:
+- Train a fresh pure visual+qpos place policy with an action scale closer to the real XLeRobot speed.
+- Reduce sim-to-real failures where the fast v21/v26 policy pushes the cube, closes before alignment, or collides with the bin.
+- Keep the change minimal before adding reward shaping, because earlier reward experiments did not reliably improve behavior.
+
+Changed from v27:
+- Reduced XLeRobot `pd_joint_delta_pos` and `pd_joint_target_delta_pos` action deltas:
+
+```python
+arm delta:     +/-0.10 -> +/-0.07 rad / control step
+gripper delta: +/-0.20 -> +/-0.10 rad / control step
+```
+
+- Kept Place horizon at 100 steps:
+
+```python
+SO101PlaceCube-v1: 100 steps
+SO101PlaceCan-v1:  100 steps
+```
+
+Files changed:
+- `envs/robot/xlerobot.py`
+- `envs/base_random_env.py`
+- `deploy_utils/calibrate_head_servos.py`
+- `deploy_utils/tune_top_camera.py`
+- `deploy_utils/xlerobot_head_servos.json`
+- `docs/place_experiment_versions.md`
+- `HANDOFF_PLACE_TASK.md`
+- `docs/codex_git_and_handoff_workflow.md`
+
+Additional calibration changes included in the same workspace update:
+- `deploy_utils/calibrate_head_servos.py` now connects with `handshake=False`.
+- `deploy_utils/tune_top_camera.py` can load `xlerobot_head_servos.json` and displays raw real, policy crop, sim, and blended comparison views.
+- Head servo centers changed to pan `129`, tilt `312`.
+- Top camera sim alignment changed to FOV `34.0` degrees and quaternion `[0.180132, 0.14849, 0.750305, 0.618503]`.
+
+Training command:
+
+```bash
+env \
+  EXP_NAME=place_xlerobot_v28a_slowreal_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  NO_PRIVILEGED_STATE=true \
+  IMAGE_SIZE=64 \
+  RENDER_SIZE=128 \
+  NUM_ENVS=12 \
+  NUM_EVAL_ENVS=8 \
+  NUM_UPDATES=8 \
+  BATCH_SIZE=48 \
+  BUFFER_SIZE=40000 \
+  TOTAL_TIMESTEPS=3500000 \
+  EVAL_FREQ=100000 \
+  GPU_LOG_INTERVAL=10 \
+  scripts/train_place_6gb_with_logs.sh
+```
+
+Run directory:
+- `runs/place_xlerobot_v28a_slowreal_64img_12env_8eval_8upd_buf40k_3500k_3060`
+
+Result summary:
+- Final eval:
+- Best eval:
+- Peak GPU memory:
+- Runtime:
+
+Observed failure modes to check:
+- cube pushed away:
+- early close:
+- cannot grasp:
+- bad gripper pose:
+- no lift after grasp:
+- no bin approach after grasp:
+
+Decision:
+- First inspect eval videos for reduced collision and better gripper centering before adding reward changes.
+
 ## Change Log Template
 
 Copy this section for each new version.

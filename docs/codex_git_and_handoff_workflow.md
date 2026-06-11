@@ -229,13 +229,13 @@ Use this compile snippet instead of `python -m py_compile` if `__pycache__` is r
 
 ## Current Recommended Reproduction Commands
 
-4090 fresh pure visual run:
+4090 fresh pure visual slow-real run:
 
 ```bash
 cd /home/gpu/squint
 
 env \
-  EXP_NAME=place_xlerobot_v27_horizon100_fresh_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
+  EXP_NAME=place_xlerobot_v28a_slowreal_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -256,7 +256,7 @@ env \
 cd /home/chichoo/squint-master6.6winproplace/squint-master
 
 env \
-  EXP_NAME=place_xlerobot_v27_horizon100_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  EXP_NAME=place_xlerobot_v28a_slowreal_64img_12env_8eval_8upd_buf40k_3500k_3060 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -288,5 +288,5 @@ Short version:
 - current Place horizon: `100`
 - current bin color: green
 - current controller: `pd_joint_target_delta_pos`
-- current action limit: arm `+-0.1`, gripper `+-0.2`
-- possible next experiment: reduce action limit to arm `+-0.07`, gripper `+-0.12`, then train fresh
+- current action limit: arm `+-0.07`, gripper `+-0.10`
+- current recommended experiment: train v28a fresh; do not resume v21/v26 because the action distribution changed

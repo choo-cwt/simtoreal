@@ -21,7 +21,7 @@ def read_raw(port: str, pan_id: int, tilt_id: int) -> dict[str, float]:
         },
     )
     try:
-        bus.connect()
+        bus.connect(handshake=False)
         return bus.sync_read("Present_Position", normalize=False, num_retry=3)
     finally:
         if bus.is_connected:

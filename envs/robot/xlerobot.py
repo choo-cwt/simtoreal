@@ -72,8 +72,8 @@ class XLeRobot(BaseAgent):
             normalize_action=False,
         )
 
-        delta_lower = [-0.1, -0.1, -0.1, -0.1, -0.1, -0.2]
-        delta_upper = [0.1, 0.1, 0.1, 0.1, 0.1, 0.2]
+        delta_lower = [-0.07, -0.07, -0.07, -0.07, -0.07, -0.10]
+        delta_upper = [0.07, 0.07, 0.07, 0.07, 0.07, 0.10]
 
         pd_joint_delta_pos = PDJointPosControllerConfig(
             joint_names,

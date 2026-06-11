@@ -101,20 +101,13 @@ Use:
 Current action limits in `envs/robot/xlerobot.py`:
 
 ```python
-delta_lower = [-0.1, -0.1, -0.1, -0.1, -0.1, -0.2]
-delta_upper = [ 0.1,  0.1,  0.1,  0.1,  0.1,  0.2]
+delta_lower = [-0.07, -0.07, -0.07, -0.07, -0.07, -0.10]
+delta_upper = [ 0.07,  0.07,  0.07,  0.07,  0.07,  0.10]
 ```
 
 Important: wrist roll is currently unlocked. Earlier versions had wrist roll fixed at `0.0`; that is no longer true.
 
-Possible next experiment if real/sim motion is too aggressive:
-
-```python
-delta_lower = [-0.07, -0.07, -0.07, -0.07, -0.07, -0.12]
-delta_upper = [ 0.07,  0.07,  0.07,  0.07,  0.07,  0.12]
-```
-
-If this action scale is changed, train a fresh checkpoint. Do not compare it directly as a simple resume from the old action distribution.
+This is the v28a slow-real setting. Train a fresh checkpoint. Do not resume from v21/v26 because the old checkpoint learned the faster action distribution.
 
 ## Current Place Environment State
 
@@ -145,6 +138,33 @@ Current Place horizon:
 ```
 
 This was restored because the 50-step run ended too quickly for stable grasp-lift-carry-release behavior.
+
+## Current Top Camera Calibration
+
+File:
+
+```text
+envs/base_random_env.py
+deploy_utils/xlerobot_head_servos.json
+```
+
+Current top/head camera alignment:
+
+```python
+TOP_CAMERA_FOV = np.deg2rad(34.0)
+TOP_CAMERA_LOCAL_Q = [0.180132, 0.14849, 0.750305, 0.618503]
+```
+
+Current head servo zero calibration:
+
+```json
+{
+  "pan_center": 129,
+  "tilt_center": 312
+}
+```
+
+Use `deploy_utils/tune_top_camera.py` to compare raw real image, policy crop, sim image, and blended alignment before real deployment.
 
 ## Domain Randomization / RNG Fixes
 
@@ -203,13 +223,13 @@ It saves:
 
 ## 4090 Cloud Fresh Training Command
 
-Recommended fresh run after restoring 100-step horizon:
+Recommended v28a fresh slow-real run:
 
 ```bash
 cd /home/gpu/squint
 
 env \
-  EXP_NAME=place_xlerobot_v27_horizon100_fresh_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
+  EXP_NAME=place_xlerobot_v28a_slowreal_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -230,29 +250,7 @@ This is pure visual+qpos because of:
 NO_PRIVILEGED_STATE=true
 ```
 
-## 4090 Resume Command
-
-Only resume from the best checkpoint, not the final checkpoint, if continuing the previous cloud run:
-
-```bash
-cd /home/gpu/squint
-
-env \
-  EXP_NAME=place_xlerobot_v27_horizon100_from_v21best_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
-  CHECKPOINT=runs/place_xlerobot_v21_greenbin_wristroll_64img_1024env_16eval_256upd_buf300k_1500k_4090/best_ckpt.pt \
-  NO_PRIVILEGED_STATE=true \
-  IMAGE_SIZE=64 \
-  RENDER_SIZE=128 \
-  NUM_ENVS=1024 \
-  NUM_EVAL_ENVS=16 \
-  NUM_UPDATES=256 \
-  BATCH_SIZE=512 \
-  BUFFER_SIZE=300000 \
-  TOTAL_TIMESTEPS=5500000 \
-  EVAL_FREQ=100000 \
-  GPU_LOG_INTERVAL=10 \
-  scripts/train_place_6gb_with_logs.sh
-```
+Do not use `CHECKPOINT=` for v28a. The action scale changed, so this should be a fresh training run.
 
 ## 3060 Local Training Command
 
@@ -262,7 +260,7 @@ Use this when limited to about 6 GB VRAM:
 cd /home/chichoo/squint-master6.6winproplace/squint-master
 
 env \
-  EXP_NAME=place_xlerobot_v27_horizon100_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  EXP_NAME=place_xlerobot_v28a_slowreal_64img_12env_8eval_8upd_buf40k_3500k_3060 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -402,15 +400,16 @@ For every promising run, keep:
 Likely causes:
 
 - The learned sim action is faster than the real robot can accurately execute.
-- Current action delta is still fairly large: arm `0.1`, gripper `0.2`.
+- Older v21/v26 runs used fast action deltas: arm `0.1`, gripper `0.2`.
+- Current v28a slow-real action deltas are arm `0.07`, gripper `0.10`.
 - Visual-only policy may approach the cube from a slightly wrong height/angle and collide before the gripper is centered.
 - 64x64 helps compared with 32x32, but it does not guarantee millimeter-level alignment.
 - If the real camera crop is shifted, the policy's perceived cube center is biased.
 
 Most useful next fixes:
 
-1. Train v27 with 100-step horizon and check if lift/place improves.
-2. If cube pushing remains strong, train a fresh moderate-action version with arm `±0.07`, gripper `±0.12`.
+1. Train v28a fresh with the slow-real action scale and 100-step horizon.
+2. If cube pushing remains strong, consider an even slower fresh run or add only narrow safety rewards for pushing/early close/lift-before-bin.
 3. Keep 64x64 input for now.
 4. Keep green bin if the real bin material is also green and visually distinct from black table and white robot.
 

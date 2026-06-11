@@ -7,9 +7,11 @@ Keys: p=print params, r=rest pose, s=start pose, f=apply FOV, q=quit.
 
 import argparse
 import atexit
+import json
 import os
 import signal
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["MKL_SERVICE_FORCE_INTEL"] = "1"
@@ -29,6 +31,9 @@ from deploy_utils.manipulator import LeRobotRealAgent
 from deploy_utils.robot_config import create_real_robot
 
 import envs
+
+
+DEFAULT_HEAD_SERVO_CONFIG = Path(__file__).with_name("xlerobot_head_servos.json")
 
 
 class LiveTopCameraTuner:
@@ -224,6 +229,26 @@ class LiveTopCameraTuner:
         rgb = cv2.resize(rgb, (self.sim_width, self.sim_height))
         return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
 
+    def _get_real_raw_and_crop(self):
+        self.real_agent.capture_sensor_data()
+        obs = self.real_agent.get_sensor_data()
+        if "base_camera" not in obs or "rgb" not in obs["base_camera"]:
+            return None, None
+        rgb = obs["base_camera"]["rgb"]
+        if hasattr(rgb, "cpu"):
+            rgb = rgb.cpu().numpy()
+        if rgb.ndim == 4:
+            rgb = rgb[0]
+
+        raw = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+        h, w = rgb.shape[:2]
+        if h != w:
+            s = min(h, w)
+            c = (max(h, w) - s) // 2
+            rgb = rgb[c : c + s, :, :] if h > w else rgb[:, c : c + s, :]
+        crop = cv2.resize(rgb, (self.sim_width, self.sim_height))
+        return raw, cv2.cvtColor(crop, cv2.COLOR_RGB2BGR)
+
     def _get_sim_image(self):
         self._apply_camera_params()
         obs = self.sim_env.unwrapped.get_obs()
@@ -257,6 +282,29 @@ class LiveTopCameraTuner:
             head_text = f"head raw pan={self.head_servo_raw['head_pan']:.0f} tilt={self.head_servo_raw['head_tilt']:.0f}"
             cv2.putText(comp, head_text, (10, comp.shape[0] - 45), font, 0.7, (0, 0, 0), 3)
             cv2.putText(comp, head_text, (10, comp.shape[0] - 45), font, 0.7, (255, 255, 255), 2)
+        return comp
+
+    def _make_raw_comparison(self, raw_real, crop_real, sim):
+        if raw_real is None or crop_real is None or sim is None:
+            return None
+        h, w = crop_real.shape[:2]
+        raw_r = cv2.resize(raw_real, (w, h))
+        sim_r = cv2.resize(sim, (w, h))
+        blended = cv2.addWeighted(crop_real, 0.5, sim_r, 0.5, 0)
+        comp = np.hstack([raw_r, crop_real, sim_r, blended])
+
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        labels = [("Raw Real", 10), ("Policy Crop", w + 10), ("Sim", 2 * w + 10), ("Blend", 3 * w + 10)]
+        for text, x in labels:
+            cv2.putText(comp, text, (x, 50), font, 1.2, (0, 0, 0), 5)
+            cv2.putText(comp, text, (x, 50), font, 1.2, (255, 255, 255), 3)
+
+        params = (
+            f"yaw={self.yaw_deg:.1f} pitch={self.pitch_deg:.1f} roll={self.roll_deg:.1f} "
+            f"fov={self.fov:.0f}"
+        )
+        cv2.putText(comp, params, (10, comp.shape[0] - 15), font, 0.7, (0, 0, 0), 3)
+        cv2.putText(comp, params, (10, comp.shape[0] - 15), font, 0.7, (255, 255, 255), 2)
         return comp
 
     def _setup_ui(self):
@@ -320,7 +368,8 @@ class LiveTopCameraTuner:
         print("  Trackbars - Adjust Yaw/Pitch/Roll/FOV\n")
 
         while True:
-            comp = self._make_comparison(self._get_real_image(), self._get_sim_image())
+            raw_real, crop_real = self._get_real_raw_and_crop()
+            comp = self._make_raw_comparison(raw_real, crop_real, self._get_sim_image())
             if comp is not None:
                 if self.fov != self._last_fov:
                     text = f"FOV: {self._last_fov:.0f}->{self.fov:.0f} (press 'f')"
@@ -383,6 +432,7 @@ if __name__ == "__main__":
     parser.add_argument("--sim-width", type=int, default=480)
     parser.add_argument("--sim-height", type=int, default=480)
     parser.add_argument("--sim-backend", default="gpu", choices=["auto", "cpu", "gpu"])
+    parser.add_argument("--head-config", type=Path, default=DEFAULT_HEAD_SERVO_CONFIG)
     parser.add_argument("--head-port", default=None, help="Optional Feetech bus port for head servos, e.g. /dev/ttyACM1")
     parser.add_argument("--head-pan-id", type=int, default=9)
     parser.add_argument("--head-tilt-id", type=int, default=10)
@@ -392,6 +442,18 @@ if __name__ == "__main__":
     parser.add_argument("--head-pan-sign", type=float, default=1.0)
     parser.add_argument("--head-tilt-sign", type=float, default=1.0)
     args = parser.parse_args()
+
+    if args.head_config.exists():
+        config = json.loads(args.head_config.read_text())
+        args.head_port = args.head_port or config.get("port")
+        args.head_pan_id = int(config.get("pan_id", args.head_pan_id))
+        args.head_tilt_id = int(config.get("tilt_id", args.head_tilt_id))
+        args.head_pan_center = float(config.get("pan_center", args.head_pan_center))
+        args.head_tilt_center = float(config.get("tilt_center", args.head_tilt_center))
+        args.head_pan_sign = float(config.get("pan_sign", args.head_pan_sign))
+        args.head_tilt_sign = float(config.get("tilt_sign", args.head_tilt_sign))
+        print(f"Loaded head servo zero calibration from {args.head_config}")
+
     LiveTopCameraTuner(
         args.env_id,
         args.sim_width,
