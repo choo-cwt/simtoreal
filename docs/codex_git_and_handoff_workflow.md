@@ -235,7 +235,7 @@ Use this compile snippet instead of `python -m py_compile` if `__pycache__` is r
 cd /home/gpu/squint
 
 env \
-  EXP_NAME=place_xlerobot_v31_shared_range_x019_034_y-005_005_mindist012_softpregrasp_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
+  EXP_NAME=place_xlerobot_v32_shared_range_mindist012_binexclude_softpregrasp_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -256,7 +256,7 @@ env \
 cd /home/chichoo/squint-master6.6winproplace/squint-master
 
 env \
-  EXP_NAME=place_xlerobot_v31_shared_range_x019_034_y-005_005_mindist012_softpregrasp_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  EXP_NAME=place_xlerobot_v32_shared_range_mindist012_binexclude_softpregrasp_64img_12env_8eval_8upd_buf40k_3500k_3060 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -291,5 +291,6 @@ Short version:
 - current action limit: arm `+-0.07`, gripper `+-0.10`
 - current effective sampling range: `x=[0.19,0.34]`, `y=[-0.05,0.05]`
 - current item/bin minimum center distance: `0.12m`
+- current item/bin bin-footprint exclusion margin: `0.01m`
 - current reward route: v29a soft pre-grasp shaping with light push/early-close penalties
-- current recommended experiment: train v31 fresh; do not resume older checkpoints because the action distribution, sampling range/spacing, and reward changed
+- current recommended experiment: train v32 fresh; do not resume older checkpoints because the action distribution, sampling range/spacing/exclusion, and reward changed

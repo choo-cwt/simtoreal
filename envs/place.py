@@ -74,6 +74,7 @@ class Place(DefaultCameraEnv):
         spawn_box_pos=[0.3, 0],
         spawn_box_half_size=0.2 / 2,
         item_bin_min_center_dist=0.0,
+        item_bin_exclusion_margin=0.0,
         privileged_state=True,
         **kwargs,
     ):
@@ -98,6 +99,8 @@ class Place(DefaultCameraEnv):
                 spawn_box_half_size = [0.075, 0.05]
                 if item_bin_min_center_dist == 0.0:
                     item_bin_min_center_dist = 0.12
+                if item_bin_exclusion_margin == 0.0:
+                    item_bin_exclusion_margin = 0.01
         else:
             raise NotImplementedError(f"Unsupported robot_uids: {robot_uids}")
 
@@ -117,6 +120,7 @@ class Place(DefaultCameraEnv):
         self.spawn_box_pos = spawn_box_pos
         self.spawn_box_half_size = spawn_box_half_size
         self.item_bin_min_center_dist = item_bin_min_center_dist
+        self.item_bin_exclusion_margin = item_bin_exclusion_margin
 
         super().__init__(
             *args,
@@ -414,9 +418,50 @@ class Place(DefaultCameraEnv):
                 item_radius = self.item_half_sizes.max().item() + 0.01
             bin_radius = self.bin_radius.max().item() + 0.01
 
-            item_xy_offset = sampler.sample(item_radius, 100)
-            min_bin_sample_radius = max(bin_radius, self.item_bin_min_center_dist - item_radius)
-            bin_xy_offset = sampler.sample(min_bin_sample_radius, 100, verbose=False)
+            if self.item_bin_min_center_dist > 0:
+                low = torch.tensor([-spawn_box_half_size_x, -spawn_box_half_size_y], device=self.device)
+                high = torch.tensor([spawn_box_half_size_x, spawn_box_half_size_y], device=self.device)
+
+                def sample_shared_offsets():
+                    return low + torch.rand((b, 2), device=self.device) * (high - low)
+
+                item_xy_offset = sample_shared_offsets()
+                bin_xy_offset = sample_shared_offsets()
+                bin_exclusion_x = self.bin_half_sizes_x[env_idx] + self.item_half_sizes[env_idx] + self.item_bin_exclusion_margin
+                bin_exclusion_y = self.bin_half_sizes_y[env_idx] + self.item_half_sizes[env_idx] + self.item_bin_exclusion_margin
+
+                def valid_item_bin_offsets():
+                    item_to_bin = item_xy_offset - bin_xy_offset
+                    center_far_enough = torch.linalg.norm(item_to_bin, dim=1) >= self.item_bin_min_center_dist
+                    outside_bin_footprint = (torch.abs(item_to_bin[:, 0]) > bin_exclusion_x) | (
+                        torch.abs(item_to_bin[:, 1]) > bin_exclusion_y
+                    )
+                    return center_far_enough & outside_bin_footprint
+
+                for _ in range(100):
+                    valid = valid_item_bin_offsets()
+                    if valid.all().item():
+                        break
+                    resample = ~valid
+                    new_bin_xy_offset = sample_shared_offsets()
+                    bin_xy_offset[resample] = new_bin_xy_offset[resample]
+                for _ in range(100):
+                    valid = valid_item_bin_offsets()
+                    if valid.all().item():
+                        break
+                    resample = ~valid
+                    new_item_xy_offset = sample_shared_offsets()
+                    new_bin_xy_offset = sample_shared_offsets()
+                    item_xy_offset[resample] = new_item_xy_offset[resample]
+                    bin_xy_offset[resample] = new_bin_xy_offset[resample]
+                valid = valid_item_bin_offsets()
+                if not valid.all().item():
+                    resample = ~valid
+                    bin_xy_offset[resample, 0] = torch.where(item_xy_offset[resample, 0] > 0, low[0], high[0])
+                    bin_xy_offset[resample, 1] = torch.where(item_xy_offset[resample, 1] > 0, low[1], high[1])
+            else:
+                item_xy_offset = sampler.sample(item_radius, 100)
+                bin_xy_offset = sampler.sample(bin_radius, 100, verbose=False)
 
             # Set item pose
             item_xyz = torch.zeros((b, 3))

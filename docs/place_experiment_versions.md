@@ -1584,6 +1584,86 @@ Observed failure modes to check:
 Decision:
 - Train fresh. If sampling fails or cube/bin are still visually too close, increase `item_bin_min_center_dist` only slightly before changing the whole range.
 
+## v32 - Bin Footprint Exclusion Sampling
+
+Date: 2026-06-11
+Status: applied, ready to train.
+
+Goal:
+- Fix cases where the item visually starts inside the open bin despite the v31 center-distance rule.
+- Keep item and bin random inside the shared v31 range, but explicitly reject item/bin placements where the item lies in the bin's rectangular footprint.
+- Preserve the v29a soft pre-grasp reward and v31 shared range.
+
+Changed from v31:
+- Added `item_bin_exclusion_margin=0.01` for XLeRobot defaults.
+- Replaced the circle-only `UniformPlacementSampler` item/bin spacing path with explicit shared-range sampling and rejection checks:
+  - item/bin center distance must be at least `0.12m`
+  - item XY must be outside the bin footprint expanded by item half-size plus `0.01m`
+
+Current XLeRobot sampling:
+
+```python
+spawn_box_pos = [0.215, 0.0]
+spawn_box_half_size = [0.075, 0.05]
+item_bin_min_center_dist = 0.12
+item_bin_exclusion_margin = 0.01
+```
+
+Effective world/table XY range:
+
+```text
+x: [0.19, 0.34]
+y: [-0.05, 0.05]
+```
+
+Files changed:
+- `envs/place.py`
+- `docs/place_experiment_versions.md`
+- `HANDOFF_PLACE_TASK.md`
+- `docs/codex_git_and_handoff_workflow.md`
+
+Training command:
+
+```bash
+env \
+  EXP_NAME=place_xlerobot_v32_shared_range_mindist012_binexclude_softpregrasp_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  NO_PRIVILEGED_STATE=true \
+  IMAGE_SIZE=64 \
+  RENDER_SIZE=128 \
+  NUM_ENVS=12 \
+  NUM_EVAL_ENVS=8 \
+  NUM_UPDATES=8 \
+  BATCH_SIZE=48 \
+  BUFFER_SIZE=40000 \
+  TOTAL_TIMESTEPS=3500000 \
+  EVAL_FREQ=100000 \
+  GPU_LOG_INTERVAL=10 \
+  scripts/train_place_6gb_with_logs.sh
+```
+
+Run directory:
+- `runs/place_xlerobot_v32_shared_range_mindist012_binexclude_softpregrasp_64img_12env_8eval_8upd_buf40k_3500k_3060`
+
+Result summary:
+- Final eval:
+- Best eval:
+- Peak GPU memory:
+- Runtime:
+
+Observed failure modes to check:
+- conservative/no motion:
+- cube starts inside bin:
+- cube/bin still too close:
+- cube pushed away:
+- early close:
+- cannot grasp:
+- bad gripper pose:
+- no lift after grasp:
+- no bin approach after grasp:
+
+Decision:
+- Train fresh. If the item still starts in the bin, increase `item_bin_exclusion_margin` before changing the range.
+
 ## Change Log Template
 
 Copy this section for each new version.
