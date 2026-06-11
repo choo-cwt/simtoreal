@@ -1254,6 +1254,84 @@ Observed failure modes to check:
 Decision:
 - First inspect eval videos for reduced collision and better gripper centering before adding reward changes.
 
+## v28b - Slow-Real Narrowed Left-Shifted Range
+
+Date: 2026-06-11
+Status: applied, ready to train.
+
+Goal:
+- Keep the v28a slow-real action scale, but move the item/bin sampling into a region that better matches the new top camera alignment and practical graspable workspace.
+- Reduce failures seen in v21/v26 cloud videos where the gripper approaches from a side/edge pose and pushes the cube before it is centered between the jaws.
+- Encourage learning from positions where the robot can first reach a stable pre-grasp pose, then close reliably, instead of flying into the cube.
+
+Changed from v28a:
+- Changed the default XLeRobot place sampling from:
+
+```python
+spawn_box_pos = [0.275, 0.0]
+spawn_box_half_size = [0.075, 0.08]
+```
+
+- To:
+
+```python
+spawn_box_pos = [0.225, -0.04]
+spawn_box_half_size = [0.075, 0.06]
+```
+
+- With XLeRobot base `[0.05, 0, 0.068]`, the effective world/table XY range is:
+
+```text
+x: [0.20, 0.35]
+y: [-0.10, 0.02]
+```
+
+Files changed:
+- `envs/place.py`
+- `docs/v28b_effective_range.svg`
+- `docs/place_experiment_versions.md`
+- `HANDOFF_PLACE_TASK.md`
+- `docs/codex_git_and_handoff_workflow.md`
+
+Training command:
+
+```bash
+env \
+  EXP_NAME=place_xlerobot_v28b_slowreal_range_x020_035_y-010_002_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  NO_PRIVILEGED_STATE=true \
+  IMAGE_SIZE=64 \
+  RENDER_SIZE=128 \
+  NUM_ENVS=12 \
+  NUM_EVAL_ENVS=8 \
+  NUM_UPDATES=8 \
+  BATCH_SIZE=48 \
+  BUFFER_SIZE=40000 \
+  TOTAL_TIMESTEPS=3500000 \
+  EVAL_FREQ=100000 \
+  GPU_LOG_INTERVAL=10 \
+  scripts/train_place_6gb_with_logs.sh
+```
+
+Run directory:
+- `runs/place_xlerobot_v28b_slowreal_range_x020_035_y-010_002_64img_12env_8eval_8upd_buf40k_3500k_3060`
+
+Result summary:
+- Final eval:
+- Best eval:
+- Peak GPU memory:
+- Runtime:
+
+Observed failure modes to check:
+- cube pushed away:
+- early close:
+- cannot grasp:
+- bad gripper pose:
+- no lift after grasp:
+- no bin approach after grasp:
+
+Decision:
+- Train fresh. Do not resume v21/v26/v28a because both action scale and sampling distribution differ.
+
 ## Change Log Template
 
 Copy this section for each new version.

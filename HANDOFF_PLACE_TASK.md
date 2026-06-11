@@ -126,8 +126,21 @@ Current status:
 - Current XLeRobot spawn area is narrowed from the default:
 
 ```python
-spawn_box_pos = [0.275, 0.0]
-spawn_box_half_size = [0.075, 0.08]
+spawn_box_pos = [0.225, -0.04]
+spawn_box_half_size = [0.075, 0.06]
+```
+
+With XLeRobot base `[0.05, 0, 0.068]`, this gives effective world/table XY ranges:
+
+```text
+x: [0.20, 0.35]
+y: [-0.10, 0.02]
+```
+
+Range visualization:
+
+```text
+docs/v28b_effective_range.svg
 ```
 
 Current Place horizon:
@@ -223,13 +236,13 @@ It saves:
 
 ## 4090 Cloud Fresh Training Command
 
-Recommended v28a fresh slow-real run:
+Recommended v28b fresh slow-real range run:
 
 ```bash
 cd /home/gpu/squint
 
 env \
-  EXP_NAME=place_xlerobot_v28a_slowreal_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
+  EXP_NAME=place_xlerobot_v28b_slowreal_range_x020_035_y-010_002_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -250,7 +263,7 @@ This is pure visual+qpos because of:
 NO_PRIVILEGED_STATE=true
 ```
 
-Do not use `CHECKPOINT=` for v28a. The action scale changed, so this should be a fresh training run.
+Do not use `CHECKPOINT=` for v28b. The action scale and sampling range changed, so this should be a fresh training run.
 
 ## 3060 Local Training Command
 
@@ -260,7 +273,7 @@ Use this when limited to about 6 GB VRAM:
 cd /home/chichoo/squint-master6.6winproplace/squint-master
 
 env \
-  EXP_NAME=place_xlerobot_v28a_slowreal_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  EXP_NAME=place_xlerobot_v28b_slowreal_range_x020_035_y-010_002_64img_12env_8eval_8upd_buf40k_3500k_3060 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -401,15 +414,16 @@ Likely causes:
 
 - The learned sim action is faster than the real robot can accurately execute.
 - Older v21/v26 runs used fast action deltas: arm `0.1`, gripper `0.2`.
-- Current v28a slow-real action deltas are arm `0.07`, gripper `0.10`.
+- Current v28b slow-real action deltas are arm `0.07`, gripper `0.10`.
+- Current v28b effective sampling range is `x=[0.20,0.35]`, `y=[-0.10,0.02]`.
 - Visual-only policy may approach the cube from a slightly wrong height/angle and collide before the gripper is centered.
 - 64x64 helps compared with 32x32, but it does not guarantee millimeter-level alignment.
 - If the real camera crop is shifted, the policy's perceived cube center is biased.
 
 Most useful next fixes:
 
-1. Train v28a fresh with the slow-real action scale and 100-step horizon.
-2. If cube pushing remains strong, consider an even slower fresh run or add only narrow safety rewards for pushing/early close/lift-before-bin.
+1. Train v28b fresh with the slow-real action scale, narrowed/shifted range, and 100-step horizon.
+2. If cube pushing remains strong, consider adding only narrow safety rewards for pushing/early close/lift-before-bin.
 3. Keep 64x64 input for now.
 4. Keep green bin if the real bin material is also green and visually distinct from black table and white robot.
 

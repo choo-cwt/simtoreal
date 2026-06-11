@@ -93,8 +93,8 @@ class Place(DefaultCameraEnv):
             self.robot_base_pos = [0.05, 0, 0.068]
             self.rest_qpos = XLeRobot.keyframes["start"].qpos.tolist()
             if spawn_box_pos == [0.3, 0] and spawn_box_half_size == 0.2 / 2:
-                spawn_box_pos = [0.275, 0.0]
-                spawn_box_half_size = [0.075, 0.08]
+                spawn_box_pos = [0.225, -0.04]
+                spawn_box_half_size = [0.075, 0.06]
         else:
             raise NotImplementedError(f"Unsupported robot_uids: {robot_uids}")
 
