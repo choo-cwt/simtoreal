@@ -95,8 +95,8 @@ class Place(DefaultCameraEnv):
             self.robot_base_pos = [0.05, 0, 0.068]
             self.rest_qpos = XLeRobot.keyframes["start"].qpos.tolist()
             if spawn_box_pos == [0.3, 0] and spawn_box_half_size == 0.2 / 2:
-                spawn_box_pos = [0.215, 0.0]
-                spawn_box_half_size = [0.075, 0.05]
+                spawn_box_pos = [0.285, 0.10]
+                spawn_box_half_size = [0.065, 0.05]
                 if item_bin_min_center_dist == 0.0:
                     item_bin_min_center_dist = 0.12
                 if item_bin_exclusion_margin == 0.0:

@@ -1664,6 +1664,102 @@ Observed failure modes to check:
 Decision:
 - Train fresh. If the item still starts in the bin, increase `item_bin_exclusion_margin` before changing the range.
 
+## v33 - Camera-Visible Shared Range
+
+Date: 2026-06-11
+Status: applied, ready to train.
+
+Goal:
+- Ensure both the cube and green bin spawn fully inside the current top/head camera view.
+- Keep the item and bin random in one shared region, while retaining v32 center-distance and bin-footprint exclusion.
+- Avoid adding stronger penalties or reward constraints; this change is only the initial distribution.
+
+Changed from v32:
+- Moved the XLeRobot Place default shared spawn region to the current top-camera visible area.
+- Kept `item_bin_min_center_dist=0.12`.
+- Kept `item_bin_exclusion_margin=0.01`.
+- Added a Place workspace diagnostic script for GPU machines:
+  - `deploy_utils/render_place_workspace.py`
+
+Current XLeRobot sampling:
+
+```python
+spawn_box_pos = [0.285, 0.10]
+spawn_box_half_size = [0.065, 0.05]
+item_bin_min_center_dist = 0.12
+item_bin_exclusion_margin = 0.01
+```
+
+Effective world/table XY range:
+
+```text
+x: [0.27, 0.40]
+y: [0.05, 0.15]
+```
+
+Local CPU geometry check with the current camera pose/FOV:
+- v32 `x=[0.19,0.34], y=[-0.05,0.05]` did not keep the largest bin fully inside the 128x128 camera frame.
+- v33 `x=[0.27,0.40], y=[0.05,0.15]` kept the largest bin/cube corner projection inside the frame with margin in the checked corner cases.
+
+Range visualization/check:
+- `docs/v33_effective_range.svg`
+- `deploy_utils/render_place_workspace.py`
+
+GPU visual check command:
+
+```bash
+python deploy_utils/render_place_workspace.py \
+  --env-id SO101PlaceCube-v1 \
+  --robot-uids xlerobot_right_head \
+  --width 640 \
+  --height 640 \
+  --checks 100 \
+  --output /tmp/place_workspace_v33.png
+```
+
+Training command:
+
+```bash
+env \
+  EXP_NAME=place_xlerobot_v33_visible_range_mindist012_binexclude_softpregrasp_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  NO_PRIVILEGED_STATE=true \
+  IMAGE_SIZE=64 \
+  RENDER_SIZE=128 \
+  NUM_ENVS=12 \
+  NUM_EVAL_ENVS=8 \
+  NUM_UPDATES=8 \
+  BATCH_SIZE=48 \
+  BUFFER_SIZE=40000 \
+  TOTAL_TIMESTEPS=3500000 \
+  EVAL_FREQ=100000 \
+  GPU_LOG_INTERVAL=10 \
+  scripts/train_place_6gb_with_logs.sh
+```
+
+Run directory:
+- `runs/place_xlerobot_v33_visible_range_mindist012_binexclude_softpregrasp_64img_12env_8eval_8upd_buf40k_3500k_3060`
+
+Result summary:
+- Final eval:
+- Best eval:
+- Peak GPU memory:
+- Runtime:
+
+Observed failure modes to check:
+- conservative/no motion:
+- cube/bin cropped by camera:
+- cube starts inside bin:
+- cube/bin still too close:
+- cube pushed away:
+- early close:
+- cannot grasp:
+- bad gripper pose:
+- no lift after grasp:
+- no bin approach after grasp:
+
+Decision:
+- Train fresh. If the new range is too far for reliable real grasping, do not widen blindly; first inspect the generated `/tmp/place_workspace_v33.png` and real camera crop alignment.
+
 ## Change Log Template
 
 Copy this section for each new version.
