@@ -1760,6 +1760,90 @@ Observed failure modes to check:
 Decision:
 - Train fresh. If the new range is too far for reliable real grasping, do not widen blindly; first inspect the generated `/tmp/place_workspace_v33.png` and real camera crop alignment.
 
+## v34 - Stable Pre-Grasp Visible Range
+
+Date: 2026-06-11
+Status: applied, ready to train.
+
+Goal:
+- Fix v33-style failures where the cube/bin are visible, but the policy approaches at a bad angle, side-swipes the cube, closes before alignment, or hits the cube with the wrist/finger side.
+- Keep the objects in the top-camera visible region while reducing far/side grasp samples.
+- Strengthen soft shaping just enough to prefer stable pre-grasp poses without making the policy stop trying.
+
+Changed from v33:
+- Narrowed the XLeRobot shared spawn range from the full visible v33 area to an easier visible subrange:
+  - v33: `x=[0.27,0.40]`, `y=[0.05,0.15]`
+  - v34: `x=[0.27,0.36]`, `y=[0.06,0.13]`
+- Kept `item_bin_min_center_dist=0.12`.
+- Kept `item_bin_exclusion_margin=0.01`.
+- Reward changes:
+  - XY centering reward increased from `0.40` to `0.55`.
+  - Added a small stable-pregrasp reward when near, XY-centered, height-close, and gripper open.
+  - Close-gripper reward now only applies when aligned, not merely near.
+  - Push penalty increased from `0.15` to `0.40` and starts above item speed `0.05m/s`.
+  - Added a small near-object fast-action penalty.
+  - Early-close penalty increased from `0.08` to `0.15` and applies when closing before the aligned pre-grasp condition.
+
+Current XLeRobot sampling:
+
+```python
+spawn_box_pos = [0.265, 0.095]
+spawn_box_half_size = [0.045, 0.035]
+item_bin_min_center_dist = 0.12
+item_bin_exclusion_margin = 0.01
+```
+
+Effective world/table XY range:
+
+```text
+x: [0.27, 0.36]
+y: [0.06, 0.13]
+```
+
+Training command:
+
+```bash
+env \
+  EXP_NAME=place_xlerobot_v34_stable_pregrasp_range_x027_036_y006_013_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  NO_PRIVILEGED_STATE=true \
+  IMAGE_SIZE=64 \
+  RENDER_SIZE=128 \
+  NUM_ENVS=12 \
+  NUM_EVAL_ENVS=8 \
+  NUM_UPDATES=8 \
+  BATCH_SIZE=48 \
+  BUFFER_SIZE=40000 \
+  TOTAL_TIMESTEPS=3500000 \
+  EVAL_FREQ=100000 \
+  GPU_LOG_INTERVAL=10 \
+  scripts/train_place_6gb_with_logs.sh
+```
+
+Run directory:
+- `runs/place_xlerobot_v34_stable_pregrasp_range_x027_036_y006_013_64img_12env_8eval_8upd_buf40k_3500k_3060`
+
+Result summary:
+- Final eval:
+- Best eval:
+- Peak GPU memory:
+- Runtime:
+
+Observed failure modes to check:
+- conservative/no motion:
+- cube/bin cropped by camera:
+- cube starts inside bin:
+- cube/bin still too close:
+- cube pushed away:
+- side-swipe contact before grasp:
+- early close:
+- cannot grasp:
+- bad gripper pose:
+- no lift after grasp:
+- no bin approach after grasp:
+
+Decision:
+- Train fresh. If the policy becomes conservative, reduce `fast_near_penalty` first before weakening the push penalty.
+
 ## Change Log Template
 
 Copy this section for each new version.

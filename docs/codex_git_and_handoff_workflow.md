@@ -235,7 +235,7 @@ Use this compile snippet instead of `python -m py_compile` if `__pycache__` is r
 cd /home/gpu/squint
 
 env \
-  EXP_NAME=place_xlerobot_v33_visible_range_mindist012_binexclude_softpregrasp_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
+  EXP_NAME=place_xlerobot_v34_stable_pregrasp_range_x027_036_y006_013_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -256,7 +256,7 @@ env \
 cd /home/chichoo/squint-master6.6winproplace/squint-master
 
 env \
-  EXP_NAME=place_xlerobot_v33_visible_range_mindist012_binexclude_softpregrasp_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  EXP_NAME=place_xlerobot_v34_stable_pregrasp_range_x027_036_y006_013_64img_12env_8eval_8upd_buf40k_3500k_3060 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -289,8 +289,8 @@ Short version:
 - current bin color: green
 - current controller: `pd_joint_target_delta_pos`
 - current action limit: arm `+-0.07`, gripper `+-0.10`
-- current effective sampling range: `x=[0.27,0.40]`, `y=[0.05,0.15]`
+- current effective sampling range: `x=[0.27,0.36]`, `y=[0.06,0.13]`
 - current item/bin minimum center distance: `0.12m`
 - current item/bin bin-footprint exclusion margin: `0.01m`
-- current reward route: v29a soft pre-grasp shaping with light push/early-close penalties
-- current recommended experiment: train v33 fresh; do not resume older checkpoints because the action distribution, sampling range/spacing/exclusion, and reward changed
+- current reward route: v34 stable pre-grasp shaping with stronger soft push/early-close/near-fast penalties
+- current recommended experiment: train v34 fresh; do not resume older checkpoints because the action distribution, sampling range/spacing/exclusion, and reward changed

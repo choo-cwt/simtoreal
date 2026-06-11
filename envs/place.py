@@ -95,8 +95,8 @@ class Place(DefaultCameraEnv):
             self.robot_base_pos = [0.05, 0, 0.068]
             self.rest_qpos = XLeRobot.keyframes["start"].qpos.tolist()
             if spawn_box_pos == [0.3, 0] and spawn_box_half_size == 0.2 / 2:
-                spawn_box_pos = [0.285, 0.10]
-                spawn_box_half_size = [0.065, 0.05]
+                spawn_box_pos = [0.265, 0.095]
+                spawn_box_half_size = [0.045, 0.035]
                 if item_bin_min_center_dist == 0.0:
                     item_bin_min_center_dist = 0.12
                 if item_bin_exclusion_margin == 0.0:
@@ -603,19 +603,25 @@ class Place(DefaultCameraEnv):
         # without making the policy afraid to try grasping.
         not_grasped = ~info["is_item_grasped"]
         tcp_to_item_xy_dist = torch.linalg.norm((self.agent.tcp_pose.p - item_pos)[..., :2], dim=1)
+        tcp_to_item_z_abs = torch.abs((self.agent.tcp_pose.p - item_pos)[..., 2])
         pregrasp_window = not_grasped & (tcp_to_item_dist <= 0.12)
         far_pregrasp = pregrasp_window & (tcp_to_item_dist > 0.04)
-        near_pregrasp = not_grasped & (tcp_to_item_dist <= 0.035)
+        near_pregrasp = not_grasped & (tcp_to_item_dist <= 0.04)
+        aligned_pregrasp = near_pregrasp & (tcp_to_item_xy_dist <= 0.025) & (tcp_to_item_z_abs <= 0.05)
+        misaligned_close = pregrasp_window & (~aligned_pregrasp)
 
         open_before_grasp_reward = 0.15 * gripper_openness * far_pregrasp.float()
-        center_before_grasp_reward = 0.40 * (1 - torch.tanh(25.0 * tcp_to_item_xy_dist)) * pregrasp_window.float()
-        near_close_reward = 0.20 * (1 - gripper_openness) * near_pregrasp.float()
+        center_before_grasp_reward = 0.55 * (1 - torch.tanh(30.0 * tcp_to_item_xy_dist)) * pregrasp_window.float()
+        stable_pregrasp_reward = 0.20 * gripper_openness * aligned_pregrasp.float()
+        near_close_reward = 0.25 * (1 - gripper_openness) * aligned_pregrasp.float()
 
         item_speed = torch.linalg.norm(self.item.linear_velocity, dim=1)
-        push_penalty = 0.15 * torch.clamp((item_speed - 0.08) / 0.12, min=0.0, max=1.0) * not_grasped.float()
-        early_close_penalty = 0.08 * (1 - gripper_openness) * far_pregrasp.float()
-        reward += open_before_grasp_reward + center_before_grasp_reward + near_close_reward
-        reward -= push_penalty + early_close_penalty
+        arm_action_norm = torch.linalg.norm(action[..., :5], dim=1)
+        push_penalty = 0.40 * torch.clamp((item_speed - 0.05) / 0.10, min=0.0, max=1.0) * not_grasped.float()
+        fast_near_penalty = 0.15 * torch.clamp((arm_action_norm - 0.12) / 0.18, min=0.0, max=1.0) * near_pregrasp.float()
+        early_close_penalty = 0.15 * (1 - gripper_openness) * misaligned_close.float()
+        reward += open_before_grasp_reward + center_before_grasp_reward + stable_pregrasp_reward + near_close_reward
+        reward -= push_penalty + fast_near_penalty + early_close_penalty
 
         lift_progress = torch.clamp((item_pos[..., 2] - self.item_half_sizes) / 0.05, min=0.0, max=1.0)
 
