@@ -1,5 +1,139 @@
 # Squint
 
+## XLeRobot Place Reproduction
+
+This fork is currently used for the XLeRobot sim-to-real Place task:
+
+```text
+Task: SO101PlaceCube-v1
+Robot: xlerobot_right_head
+Control: pd_joint_target_delta_pos
+Current route: pure visual + qpos, no privileged item/bin state
+```
+
+Read these project-specific documents before changing or training:
+
+```text
+HANDOFF_PLACE_TASK.md
+docs/place_experiment_versions.md
+docs/codex_git_and_handoff_workflow.md
+```
+
+### Setup
+
+```bash
+conda env create -f environment.yaml
+conda activate squint
+```
+
+### 4090 Cloud Training
+
+Fresh pure-visual training with the current 100-step Place horizon:
+
+```bash
+cd /home/gpu/squint
+
+env \
+  EXP_NAME=place_xlerobot_v27_horizon100_fresh_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
+  NO_PRIVILEGED_STATE=true \
+  IMAGE_SIZE=64 \
+  RENDER_SIZE=128 \
+  NUM_ENVS=1024 \
+  NUM_EVAL_ENVS=16 \
+  NUM_UPDATES=256 \
+  BATCH_SIZE=512 \
+  BUFFER_SIZE=300000 \
+  TOTAL_TIMESTEPS=5500000 \
+  EVAL_FREQ=100000 \
+  GPU_LOG_INTERVAL=10 \
+  scripts/train_place_6gb_with_logs.sh
+```
+
+Resume only from the previous best checkpoint, not the final checkpoint:
+
+```bash
+cd /home/gpu/squint
+
+env \
+  EXP_NAME=place_xlerobot_v27_horizon100_from_v21best_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
+  CHECKPOINT=runs/place_xlerobot_v21_greenbin_wristroll_64img_1024env_16eval_256upd_buf300k_1500k_4090/best_ckpt.pt \
+  NO_PRIVILEGED_STATE=true \
+  IMAGE_SIZE=64 \
+  RENDER_SIZE=128 \
+  NUM_ENVS=1024 \
+  NUM_EVAL_ENVS=16 \
+  NUM_UPDATES=256 \
+  BATCH_SIZE=512 \
+  BUFFER_SIZE=300000 \
+  TOTAL_TIMESTEPS=5500000 \
+  EVAL_FREQ=100000 \
+  GPU_LOG_INTERVAL=10 \
+  scripts/train_place_6gb_with_logs.sh
+```
+
+### 3060 Local Training
+
+Use this lower-memory command on a 6 GB GPU:
+
+```bash
+cd /home/chichoo/squint-master6.6winproplace/squint-master
+
+env \
+  EXP_NAME=place_xlerobot_v27_horizon100_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  NO_PRIVILEGED_STATE=true \
+  IMAGE_SIZE=64 \
+  RENDER_SIZE=128 \
+  NUM_ENVS=12 \
+  NUM_EVAL_ENVS=8 \
+  NUM_UPDATES=8 \
+  BATCH_SIZE=48 \
+  BUFFER_SIZE=40000 \
+  TOTAL_TIMESTEPS=3500000 \
+  EVAL_FREQ=100000 \
+  GPU_LOG_INTERVAL=10 \
+  scripts/train_place_6gb_with_logs.sh
+```
+
+If replay buffer allocation OOMs, reduce in this order:
+
+```text
+BUFFER_SIZE=30000
+BATCH_SIZE=32
+NUM_ENVS=8
+```
+
+### What Each Run Saves
+
+The wrapper `scripts/train_place_6gb_with_logs.sh` saves:
+
+```text
+runs/<EXP_NAME>/command.txt
+runs/<EXP_NAME>/train.log
+runs/<EXP_NAME>/eval_summary.txt
+runs/<EXP_NAME>/gpu_memory.csv
+runs/<EXP_NAME>/gpu_peak.txt
+runs/<EXP_NAME>/failure_notes.md
+runs/<EXP_NAME>/videos/
+runs/<EXP_NAME>/ckpt.pt
+runs/<EXP_NAME>/best_ckpt.pt
+```
+
+Keep these for every serious run. For follow-up analysis, the most useful items are the full command, `train.log`, `eval_summary.txt`, eval videos, `best_ckpt.pt`, peak GPU memory, and notes about failure type.
+
+### Git In This Workspace
+
+This local environment mounts `.git/` as read-only, so this repo uses `.gitrepo/` plus a wrapper script:
+
+```bash
+scripts/git_project.sh status
+scripts/git_project.sh diff
+scripts/git_project.sh add <files>
+scripts/git_project.sh commit -m "message"
+scripts/git_project.sh push
+```
+
+Do not run plain `git status` in this workspace unless the repo has been cloned normally elsewhere.
+
 <p align="center">
 <img width="24%" src="https://github.com/aalmuzairee/squint/blob/gh-pages/static/extras/gifs/reach_cube.gif">
 <img width="24%" src="https://github.com/aalmuzairee/squint/blob/gh-pages/static/extras/gifs/reach_can.gif">
@@ -231,4 +365,3 @@ We would also like to thank [@jackvial](https://github.com/jackvial) for setting
 ## 📄 License
 
 This project is [MIT Licensed](LICENSE). Dependencies are subject to their own licenses.
-
