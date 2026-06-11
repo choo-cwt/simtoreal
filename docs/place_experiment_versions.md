@@ -1422,6 +1422,85 @@ Observed failure modes to check:
 Decision:
 - Train fresh. If the policy becomes conservative, reduce penalties before increasing rewards. If it still pushes the cube, inspect videos before changing penalty weights.
 
+## v30 - Grasp Sweet-Spot Range
+
+Date: 2026-06-11
+Status: applied, ready to train.
+
+Goal:
+- Tighten the item/bin sampling range to the visually centered, practically graspable workspace seen in the latest eval video.
+- Remove the far-left/edge cases from v28b/v29a where the policy sees the cube near the policy-image edge and learns side-contact approaches.
+- Keep v29a soft pre-grasp reward unchanged so the experiment isolates the range change.
+
+Changed from v29a:
+- Changed the default XLeRobot place sampling from:
+
+```python
+spawn_box_pos = [0.225, -0.04]
+spawn_box_half_size = [0.075, 0.06]
+```
+
+- To:
+
+```python
+spawn_box_pos = [0.225, 0.0]
+spawn_box_half_size = [0.055, 0.04]
+```
+
+- With XLeRobot base `[0.05, 0, 0.068]`, the effective world/table XY range is:
+
+```text
+x: [0.22, 0.33]
+y: [-0.04, 0.04]
+```
+
+Files changed:
+- `envs/place.py`
+- `docs/v30_effective_range.svg`
+- `docs/place_experiment_versions.md`
+- `HANDOFF_PLACE_TASK.md`
+- `docs/codex_git_and_handoff_workflow.md`
+
+Training command:
+
+```bash
+env \
+  EXP_NAME=place_xlerobot_v30_sweetspot_range_x022_033_y-004_004_softpregrasp_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  NO_PRIVILEGED_STATE=true \
+  IMAGE_SIZE=64 \
+  RENDER_SIZE=128 \
+  NUM_ENVS=12 \
+  NUM_EVAL_ENVS=8 \
+  NUM_UPDATES=8 \
+  BATCH_SIZE=48 \
+  BUFFER_SIZE=40000 \
+  TOTAL_TIMESTEPS=3500000 \
+  EVAL_FREQ=100000 \
+  GPU_LOG_INTERVAL=10 \
+  scripts/train_place_6gb_with_logs.sh
+```
+
+Run directory:
+- `runs/place_xlerobot_v30_sweetspot_range_x022_033_y-004_004_softpregrasp_64img_12env_8eval_8upd_buf40k_3500k_3060`
+
+Result summary:
+- Final eval:
+- Best eval:
+- Peak GPU memory:
+- Runtime:
+
+Observed failure modes to check:
+- conservative/no motion:
+- cube pushed away:
+- early close:
+- cannot grasp:
+- bad gripper pose:
+- no lift after grasp:
+- no bin approach after grasp:
+
+Decision:
+- Train fresh. If v30 learns stable grasping, later widen the range gradually instead of jumping back to v28b's far-left range.
+
 ## Change Log Template
 
 Copy this section for each new version.

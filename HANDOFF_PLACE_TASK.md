@@ -126,21 +126,21 @@ Current status:
 - Current XLeRobot spawn area is narrowed from the default:
 
 ```python
-spawn_box_pos = [0.225, -0.04]
-spawn_box_half_size = [0.075, 0.06]
+spawn_box_pos = [0.225, 0.0]
+spawn_box_half_size = [0.055, 0.04]
 ```
 
 With XLeRobot base `[0.05, 0, 0.068]`, this gives effective world/table XY ranges:
 
 ```text
-x: [0.20, 0.35]
-y: [-0.10, 0.02]
+x: [0.22, 0.33]
+y: [-0.04, 0.04]
 ```
 
 Range visualization:
 
 ```text
-docs/v28b_effective_range.svg
+docs/v30_effective_range.svg
 ```
 
 Current Place horizon:
@@ -236,13 +236,13 @@ It saves:
 
 ## 4090 Cloud Fresh Training Command
 
-Recommended v29a fresh soft pre-grasp run:
+Recommended v30 fresh sweet-spot range run:
 
 ```bash
 cd /home/gpu/squint
 
 env \
-  EXP_NAME=place_xlerobot_v29a_softpregrasp_range_x020_035_y-010_002_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
+  EXP_NAME=place_xlerobot_v30_sweetspot_range_x022_033_y-004_004_softpregrasp_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -263,7 +263,7 @@ This is pure visual+qpos because of:
 NO_PRIVILEGED_STATE=true
 ```
 
-Do not use `CHECKPOINT=` for v29a. The action scale, sampling range, and reward changed, so this should be a fresh training run.
+Do not use `CHECKPOINT=` for v30. The action scale, sampling range, and reward differ from older checkpoints, so this should be a fresh training run.
 
 ## 3060 Local Training Command
 
@@ -273,7 +273,7 @@ Use this when limited to about 6 GB VRAM:
 cd /home/chichoo/squint-master6.6winproplace/squint-master
 
 env \
-  EXP_NAME=place_xlerobot_v29a_softpregrasp_range_x020_035_y-010_002_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  EXP_NAME=place_xlerobot_v30_sweetspot_range_x022_033_y-004_004_softpregrasp_64img_12env_8eval_8upd_buf40k_3500k_3060 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -415,15 +415,15 @@ Likely causes:
 - The learned sim action is faster than the real robot can accurately execute.
 - Older v21/v26 runs used fast action deltas: arm `0.1`, gripper `0.2`.
 - Current v29a uses v28b slow-real action deltas: arm `0.07`, gripper `0.10`.
-- Current v29a uses v28b effective sampling range: `x=[0.20,0.35]`, `y=[-0.10,0.02]`.
-- Current v29a reward adds small positive pre-grasp shaping and only light push/early-close penalties.
+- Current v30 effective sampling range is the tighter grasp sweet spot: `x=[0.22,0.33]`, `y=[-0.04,0.04]`.
+- Current v30 keeps v29a reward: small positive pre-grasp shaping and only light push/early-close penalties.
 - Visual-only policy may approach the cube from a slightly wrong height/angle and collide before the gripper is centered.
 - 64x64 helps compared with 32x32, but it does not guarantee millimeter-level alignment.
 - If the real camera crop is shifted, the policy's perceived cube center is biased.
 
 Most useful next fixes:
 
-1. Train v29a fresh with slow-real action scale, narrowed/shifted range, soft pre-grasp reward, and 100-step horizon.
+1. Train v30 fresh with slow-real action scale, tighter sweet-spot range, soft pre-grasp reward, and 100-step horizon.
 2. If cube pushing remains strong, inspect eval videos before increasing penalty weights; avoid making the policy conservative.
 3. Keep 64x64 input for now.
 4. Keep green bin if the real bin material is also green and visually distinct from black table and white robot.
