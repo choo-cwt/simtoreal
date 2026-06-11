@@ -73,6 +73,7 @@ class Place(DefaultCameraEnv):
         domain_randomization=False,
         spawn_box_pos=[0.3, 0],
         spawn_box_half_size=0.2 / 2,
+        item_bin_min_center_dist=0.0,
         privileged_state=True,
         **kwargs,
     ):
@@ -93,8 +94,10 @@ class Place(DefaultCameraEnv):
             self.robot_base_pos = [0.05, 0, 0.068]
             self.rest_qpos = XLeRobot.keyframes["start"].qpos.tolist()
             if spawn_box_pos == [0.3, 0] and spawn_box_half_size == 0.2 / 2:
-                spawn_box_pos = [0.225, 0.0]
-                spawn_box_half_size = [0.055, 0.04]
+                spawn_box_pos = [0.215, 0.0]
+                spawn_box_half_size = [0.075, 0.05]
+                if item_bin_min_center_dist == 0.0:
+                    item_bin_min_center_dist = 0.12
         else:
             raise NotImplementedError(f"Unsupported robot_uids: {robot_uids}")
 
@@ -113,6 +116,7 @@ class Place(DefaultCameraEnv):
 
         self.spawn_box_pos = spawn_box_pos
         self.spawn_box_half_size = spawn_box_half_size
+        self.item_bin_min_center_dist = item_bin_min_center_dist
 
         super().__init__(
             *args,
@@ -411,7 +415,8 @@ class Place(DefaultCameraEnv):
             bin_radius = self.bin_radius.max().item() + 0.01
 
             item_xy_offset = sampler.sample(item_radius, 100)
-            bin_xy_offset = sampler.sample(bin_radius, 100, verbose=False)
+            min_bin_sample_radius = max(bin_radius, self.item_bin_min_center_dist - item_radius)
+            bin_xy_offset = sampler.sample(min_bin_sample_radius, 100, verbose=False)
 
             # Set item pose
             item_xyz = torch.zeros((b, 3))

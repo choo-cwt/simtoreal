@@ -1501,6 +1501,89 @@ Observed failure modes to check:
 Decision:
 - Train fresh. If v30 learns stable grasping, later widen the range gradually instead of jumping back to v28b's far-left range.
 
+## v31 - Shared Range With Item-Bin Spacing
+
+Date: 2026-06-11
+Status: applied, ready to train.
+
+Goal:
+- Avoid fixing cube and bin into separate regions while still preventing initial cube/bin overlap or near-overlap.
+- Move the effective shared range slightly left of v30 and widen it moderately.
+- Keep v29a soft pre-grasp reward unchanged so this experiment isolates the sampling distribution and spacing rule.
+
+Changed from v30:
+- Changed the default XLeRobot shared sampling range from:
+
+```python
+spawn_box_pos = [0.225, 0.0]
+spawn_box_half_size = [0.055, 0.04]
+```
+
+- To:
+
+```python
+spawn_box_pos = [0.215, 0.0]
+spawn_box_half_size = [0.075, 0.05]
+item_bin_min_center_dist = 0.12
+```
+
+- With XLeRobot base `[0.05, 0, 0.068]`, the effective world/table XY range is:
+
+```text
+x: [0.19, 0.34]
+y: [-0.05, 0.05]
+```
+
+- The item and bin are still sampled randomly inside the shared range, but the bin sample radius is inflated so item/bin centers are at least `0.12m` apart.
+
+Files changed:
+- `envs/place.py`
+- `docs/v31_effective_range.svg`
+- `docs/place_experiment_versions.md`
+- `HANDOFF_PLACE_TASK.md`
+- `docs/codex_git_and_handoff_workflow.md`
+
+Training command:
+
+```bash
+env \
+  EXP_NAME=place_xlerobot_v31_shared_range_x019_034_y-005_005_mindist012_softpregrasp_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  NO_PRIVILEGED_STATE=true \
+  IMAGE_SIZE=64 \
+  RENDER_SIZE=128 \
+  NUM_ENVS=12 \
+  NUM_EVAL_ENVS=8 \
+  NUM_UPDATES=8 \
+  BATCH_SIZE=48 \
+  BUFFER_SIZE=40000 \
+  TOTAL_TIMESTEPS=3500000 \
+  EVAL_FREQ=100000 \
+  GPU_LOG_INTERVAL=10 \
+  scripts/train_place_6gb_with_logs.sh
+```
+
+Run directory:
+- `runs/place_xlerobot_v31_shared_range_x019_034_y-005_005_mindist012_softpregrasp_64img_12env_8eval_8upd_buf40k_3500k_3060`
+
+Result summary:
+- Final eval:
+- Best eval:
+- Peak GPU memory:
+- Runtime:
+
+Observed failure modes to check:
+- conservative/no motion:
+- cube pushed away:
+- early close:
+- cannot grasp:
+- bad gripper pose:
+- cube/bin still too close:
+- no lift after grasp:
+- no bin approach after grasp:
+
+Decision:
+- Train fresh. If sampling fails or cube/bin are still visually too close, increase `item_bin_min_center_dist` only slightly before changing the whole range.
+
 ## Change Log Template
 
 Copy this section for each new version.
