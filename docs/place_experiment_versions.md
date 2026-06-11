@@ -1332,6 +1332,96 @@ Observed failure modes to check:
 Decision:
 - Train fresh. Do not resume v21/v26/v28a because both action scale and sampling distribution differ.
 
+## v29a - Soft Pre-Grasp Reward
+
+Date: 2026-06-11
+Status: applied, ready to train.
+
+Goal:
+- Make the policy first move to a stable graspable pose near the cube, then close, instead of rushing into the cube and pushing it.
+- Avoid heavy constraint penalties that could teach the policy to stop trying.
+- Preserve the v28b slow-real action scale and narrowed/shifted sampling range.
+
+Changed from v28b:
+- Kept action deltas:
+
+```python
+arm delta:     +/-0.07 rad / control step
+gripper delta: +/-0.10 rad / control step
+```
+
+- Kept effective sampling range:
+
+```text
+x: [0.20, 0.35]
+y: [-0.10, 0.02]
+```
+
+- Added soft pre-grasp shaping in `compute_dense_reward`:
+  - small open-gripper reward when near the cube but not yet close enough to close
+  - small XY centering reward while approaching the cube
+  - small near-close reward only when TCP is close to the cube
+  - light push penalty only when the item is not grasped and item speed exceeds `0.08`
+  - light early-close penalty when still farther than `0.04`
+  - small lift-progress reward after grasping
+
+Weight scale:
+
+```text
+open-before-grasp reward:  <= +0.15
+center-before-grasp reward: <= +0.40
+near-close reward:          <= +0.20
+push penalty:               <= -0.15
+early-close penalty:        <= -0.08
+grasped lift reward:        <= +0.50
+```
+
+Files changed:
+- `envs/place.py`
+- `docs/place_experiment_versions.md`
+- `HANDOFF_PLACE_TASK.md`
+- `docs/codex_git_and_handoff_workflow.md`
+
+Training command:
+
+```bash
+env \
+  EXP_NAME=place_xlerobot_v29a_softpregrasp_range_x020_035_y-010_002_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  NO_PRIVILEGED_STATE=true \
+  IMAGE_SIZE=64 \
+  RENDER_SIZE=128 \
+  NUM_ENVS=12 \
+  NUM_EVAL_ENVS=8 \
+  NUM_UPDATES=8 \
+  BATCH_SIZE=48 \
+  BUFFER_SIZE=40000 \
+  TOTAL_TIMESTEPS=3500000 \
+  EVAL_FREQ=100000 \
+  GPU_LOG_INTERVAL=10 \
+  scripts/train_place_6gb_with_logs.sh
+```
+
+Run directory:
+- `runs/place_xlerobot_v29a_softpregrasp_range_x020_035_y-010_002_64img_12env_8eval_8upd_buf40k_3500k_3060`
+
+Result summary:
+- Final eval:
+- Best eval:
+- Peak GPU memory:
+- Runtime:
+
+Observed failure modes to check:
+- conservative/no motion:
+- cube pushed away:
+- early close:
+- cannot grasp:
+- bad gripper pose:
+- no lift after grasp:
+- no bin approach after grasp:
+
+Decision:
+- Train fresh. If the policy becomes conservative, reduce penalties before increasing rewards. If it still pushes the cube, inspect videos before changing penalty weights.
+
 ## Change Log Template
 
 Copy this section for each new version.

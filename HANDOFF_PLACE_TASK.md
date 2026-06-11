@@ -107,7 +107,7 @@ delta_upper = [ 0.07,  0.07,  0.07,  0.07,  0.07,  0.10]
 
 Important: wrist roll is currently unlocked. Earlier versions had wrist roll fixed at `0.0`; that is no longer true.
 
-This is the v28a slow-real setting. Train a fresh checkpoint. Do not resume from v21/v26 because the old checkpoint learned the faster action distribution.
+This is the v28/v29 slow-real action scale. Train a fresh checkpoint after reward or range changes. Do not resume from v21/v26 because the old checkpoint learned the faster action distribution.
 
 ## Current Place Environment State
 
@@ -236,13 +236,13 @@ It saves:
 
 ## 4090 Cloud Fresh Training Command
 
-Recommended v28b fresh slow-real range run:
+Recommended v29a fresh soft pre-grasp run:
 
 ```bash
 cd /home/gpu/squint
 
 env \
-  EXP_NAME=place_xlerobot_v28b_slowreal_range_x020_035_y-010_002_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
+  EXP_NAME=place_xlerobot_v29a_softpregrasp_range_x020_035_y-010_002_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -263,7 +263,7 @@ This is pure visual+qpos because of:
 NO_PRIVILEGED_STATE=true
 ```
 
-Do not use `CHECKPOINT=` for v28b. The action scale and sampling range changed, so this should be a fresh training run.
+Do not use `CHECKPOINT=` for v29a. The action scale, sampling range, and reward changed, so this should be a fresh training run.
 
 ## 3060 Local Training Command
 
@@ -273,7 +273,7 @@ Use this when limited to about 6 GB VRAM:
 cd /home/chichoo/squint-master6.6winproplace/squint-master
 
 env \
-  EXP_NAME=place_xlerobot_v28b_slowreal_range_x020_035_y-010_002_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  EXP_NAME=place_xlerobot_v29a_softpregrasp_range_x020_035_y-010_002_64img_12env_8eval_8upd_buf40k_3500k_3060 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -414,16 +414,17 @@ Likely causes:
 
 - The learned sim action is faster than the real robot can accurately execute.
 - Older v21/v26 runs used fast action deltas: arm `0.1`, gripper `0.2`.
-- Current v28b slow-real action deltas are arm `0.07`, gripper `0.10`.
-- Current v28b effective sampling range is `x=[0.20,0.35]`, `y=[-0.10,0.02]`.
+- Current v29a uses v28b slow-real action deltas: arm `0.07`, gripper `0.10`.
+- Current v29a uses v28b effective sampling range: `x=[0.20,0.35]`, `y=[-0.10,0.02]`.
+- Current v29a reward adds small positive pre-grasp shaping and only light push/early-close penalties.
 - Visual-only policy may approach the cube from a slightly wrong height/angle and collide before the gripper is centered.
 - 64x64 helps compared with 32x32, but it does not guarantee millimeter-level alignment.
 - If the real camera crop is shifted, the policy's perceived cube center is biased.
 
 Most useful next fixes:
 
-1. Train v28b fresh with the slow-real action scale, narrowed/shifted range, and 100-step horizon.
-2. If cube pushing remains strong, consider adding only narrow safety rewards for pushing/early close/lift-before-bin.
+1. Train v29a fresh with slow-real action scale, narrowed/shifted range, soft pre-grasp reward, and 100-step horizon.
+2. If cube pushing remains strong, inspect eval videos before increasing penalty weights; avoid making the policy conservative.
 3. Keep 64x64 input for now.
 4. Keep green bin if the real bin material is also green and visually distinct from black table and white robot.
 

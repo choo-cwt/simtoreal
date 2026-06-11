@@ -235,7 +235,7 @@ Use this compile snippet instead of `python -m py_compile` if `__pycache__` is r
 cd /home/gpu/squint
 
 env \
-  EXP_NAME=place_xlerobot_v28b_slowreal_range_x020_035_y-010_002_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
+  EXP_NAME=place_xlerobot_v29a_softpregrasp_range_x020_035_y-010_002_64img_1024env_16eval_256upd_buf300k_5500k_4090 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -256,7 +256,7 @@ env \
 cd /home/chichoo/squint-master6.6winproplace/squint-master
 
 env \
-  EXP_NAME=place_xlerobot_v28b_slowreal_range_x020_035_y-010_002_64img_12env_8eval_8upd_buf40k_3500k_3060 \
+  EXP_NAME=place_xlerobot_v29a_softpregrasp_range_x020_035_y-010_002_64img_12env_8eval_8upd_buf40k_3500k_3060 \
   NO_PRIVILEGED_STATE=true \
   IMAGE_SIZE=64 \
   RENDER_SIZE=128 \
@@ -290,4 +290,5 @@ Short version:
 - current controller: `pd_joint_target_delta_pos`
 - current action limit: arm `+-0.07`, gripper `+-0.10`
 - current effective sampling range: `x=[0.20,0.35]`, `y=[-0.10,0.02]`
-- current recommended experiment: train v28b fresh; do not resume v21/v26/v28a because the action distribution and sampling range changed
+- current reward route: v29a soft pre-grasp shaping with light push/early-close penalties
+- current recommended experiment: train v29a fresh; do not resume v21/v26/v28 because the action distribution, sampling range, and reward changed

@@ -549,8 +549,28 @@ class Place(DefaultCameraEnv):
         gripper_min, gripper_max = self.agent.robot.get_qlimits()[0, -1, :]
         gripper_openness = (self.agent.robot.get_qpos()[:, -1] - gripper_min) / (gripper_max - gripper_min)
 
-        # Grasped: 3 + place_reward
-        reward[info["is_item_grasped"]] = (3 + place_reward)[info["is_item_grasped"]]
+        # Soft pre-grasp shaping: guide open, centered, low-impact approaches
+        # without making the policy afraid to try grasping.
+        not_grasped = ~info["is_item_grasped"]
+        tcp_to_item_xy_dist = torch.linalg.norm((self.agent.tcp_pose.p - item_pos)[..., :2], dim=1)
+        pregrasp_window = not_grasped & (tcp_to_item_dist <= 0.12)
+        far_pregrasp = pregrasp_window & (tcp_to_item_dist > 0.04)
+        near_pregrasp = not_grasped & (tcp_to_item_dist <= 0.035)
+
+        open_before_grasp_reward = 0.15 * gripper_openness * far_pregrasp.float()
+        center_before_grasp_reward = 0.40 * (1 - torch.tanh(25.0 * tcp_to_item_xy_dist)) * pregrasp_window.float()
+        near_close_reward = 0.20 * (1 - gripper_openness) * near_pregrasp.float()
+
+        item_speed = torch.linalg.norm(self.item.linear_velocity, dim=1)
+        push_penalty = 0.15 * torch.clamp((item_speed - 0.08) / 0.12, min=0.0, max=1.0) * not_grasped.float()
+        early_close_penalty = 0.08 * (1 - gripper_openness) * far_pregrasp.float()
+        reward += open_before_grasp_reward + center_before_grasp_reward + near_close_reward
+        reward -= push_penalty + early_close_penalty
+
+        lift_progress = torch.clamp((item_pos[..., 2] - self.item_half_sizes) / 0.05, min=0.0, max=1.0)
+
+        # Grasped: 3 + place_reward, with a small continuous lift preference
+        reward[info["is_item_grasped"]] = (3 + 0.50 * lift_progress + place_reward)[info["is_item_grasped"]]
 
         # Above bin: 3 + place_reward + gripper_openness
         is_item_dropped = (~info["robot_touching_item"]).float()
